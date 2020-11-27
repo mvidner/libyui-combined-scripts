@@ -1,0 +1,53 @@
+#!/bin/bash
+# ingest several repos
+
+set -x
+set -eu
+
+# $1: URL to clone
+import() {
+    URL="$1"
+
+    DIR="${URL##*/}"
+    CDIR=clones/"$DIR"
+    mkdir -p clones
+    if ! test -d "$CDIR"; then
+        git clone "$URL" "$CDIR"
+        pushd "$CDIR"
+        git-filter-repo --to-subdirectory-filter "$DIR"
+        popd
+    fi
+
+    git remote add "$R" "$CDIR"
+    git fetch "$R"
+}
+
+LIBYUI_REPOS=(
+    libyui
+    libyui-bindings
+    libyui-rest-api
+    libyui-ncurses          libyui-qt
+                            libyui-qt-graph
+    libyui-ncurses-pkg      libyui-qt-pkg
+    libyui-ncurses-rest-api libyui-qt-rest-api
+)
+
+# short version for prototyping
+# LIBYUI_REPOS=(libyui libyui-ncurses libyui-qt)
+
+git init .
+git commit --allow-empty -m "Empty initial commit"
+FIRST_COMMIT=$(git rev-list --max-count=1 HEAD)
+for R in "${LIBYUI_REPOS[@]}"; do
+    import https://github.com/libyui/"$R"
+
+    git reset --hard "$FIRST_COMMIT"
+    git commit --allow-empty -m "Empty parent commit for $R"
+    EMPTY_PARENT=$(git rev-list --max-count=1 HEAD)
+
+    BRANCH_INITIAL_COMMIT=$(git rev-list --max-parents=0 "$R"/master)
+    git replace --graft "$BRANCH_INITIAL_COMMIT" "$EMPTY_PARENT"
+done
+
+# merge foo/master bar/master
+git merge -m "Mooooooooerge!!" "${LIBYUI_REPOS[@]/%/\/master}"
