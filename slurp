@@ -58,3 +58,36 @@ merge_master() {
 
 merge_master
 
+# sed does
+#   libyui/foo
+#   libyui-qt/bar/baz
+# ->
+#   foo
+#   bar/baz
+BRANCHES=$(git branch --remotes | sed 's@[^/]*/@@' | sort --uniq)
+
+branch_exists() {
+    git rev-list --quiet "$1" -- 2>/dev/null
+}
+
+needs_common_origin() {
+    case "$1" in
+        # "fatal: refusing to merge unrelated histories"
+        openSUSE-10_0|openSUSE-10_1|openSUSE-10_2|openSUSE-10_3)
+            return 0;;
+        openSUSE-9_3|SLE-10|SLE-10-SP1|SLE-10-SP2|SLE-10-SP3|SLE-10-SP4|SLE-10-SP4-Code11-Backport)
+            return 0;;
+        *)
+            return 1;;
+    esac
+}
+
+for B in $BRANCHES; do
+    if branch_exists "$B"; then continue; fi
+    # TODO: do something similar to master: create an artificial common commit
+    if needs_common_origin "$B"; then continue; fi
+
+    ONE_REMOTE=$(git branch --remotes | sed -n "s@ *\([^/]*\)/$B\$@\1@;T;p;q")
+    git switch --no-track --create "$B" "${ONE_REMOTE}"/"$B"
+    git merge --ff -m "Mooerge $B" $(git branch --remotes | grep "/$B$")
+done
