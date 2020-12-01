@@ -35,19 +35,26 @@ LIBYUI_REPOS=(
 # short version for prototyping
 # LIBYUI_REPOS=(libyui libyui-ncurses libyui-qt)
 
-git init .
-git commit --allow-empty -m "Empty initial commit"
-FIRST_COMMIT=$(git rev-list --max-count=1 HEAD)
-for R in "${LIBYUI_REPOS[@]}"; do
-    import https://github.com/libyui/"$R"
+MSG="Empty initial commit"
+if ! test -d .git; then
+    git init .
+    git commit --allow-empty -m "$MSG"
+fi
+FIRST_COMMIT=$(git rev-list --max-count=1 --fixed-strings --grep="$MSG" HEAD)
 
-    git reset --hard "$FIRST_COMMIT"
-    git commit --allow-empty -m "Empty parent commit for $R"
-    EMPTY_PARENT=$(git rev-list --max-count=1 HEAD)
+merge_master() {
+    for R in "${LIBYUI_REPOS[@]}"; do
+        import https://github.com/libyui/"$R"
 
-    BRANCH_INITIAL_COMMIT=$(git rev-list --max-parents=0 "$R"/master)
-    git replace --graft "$BRANCH_INITIAL_COMMIT" "$EMPTY_PARENT"
-done
+        git reset --hard "$FIRST_COMMIT"
+        git commit --allow-empty -m "Empty parent commit for $R"
+        EMPTY_PARENT=$(git rev-list --max-count=1 HEAD)
 
-# merge foo/master bar/master
-git merge -m "Mooooooooerge!!" "${LIBYUI_REPOS[@]/%/\/master}"
+        BRANCH_INITIAL_COMMIT=$(git rev-list --max-parents=0 "$R"/master)
+        git replace --graft "$BRANCH_INITIAL_COMMIT" "$EMPTY_PARENT"
+    done
+    git merge -m "Mooooooooerge!!" "${LIBYUI_REPOS[@]/%/\/master}"
+}
+
+merge_master
+
