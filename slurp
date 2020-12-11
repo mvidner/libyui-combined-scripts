@@ -8,13 +8,25 @@ set -eu
 import() {
     URL="$1"
 
-    DIR="${URL##*/}"
+    export DIR="${URL##*/}"
     CDIR=clones/"$DIR"
     mkdir -p clones
     if ! test -d "$CDIR"; then
         git clone "$URL" "$CDIR"
         pushd "$CDIR"
-        git-filter-repo --to-subdirectory-filter "$DIR"
+        git-filter-repo \
+            --to-subdirectory-filter "$DIR" \
+            --message-callback \
+            'dir = bytes(os.environ["DIR"], "UTF-8"); return re.sub(br"([^A-Za-z]|^)(#[0-9]{1,4})([^0-9]|$)", br"\1libyui/" + dir + br"\2\3",  message)'
+
+
+        # reconnect disjoint history
+        if [ "$DIR" = libyui-qt ]; then
+            CONNECT_PARENT=$(git rev-list --all --grep revision=42972)
+            CONNECT_CHILD=$(git  rev-list --all --grep revision=43019)
+            git replace --graft "$CONNECT_CHILD" "$CONNECT_PARENT"
+        fi
+
         popd
     fi
 
