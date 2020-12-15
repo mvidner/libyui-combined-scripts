@@ -20,6 +20,15 @@ import() {
             'dir = bytes(os.environ["DIR"], "UTF-8"); return re.sub(br"([^A-Za-z]|^)(#[0-9]{1,4})([^0-9]|$)", br"\1libyui/" + dir + br"\2\3",  message)'
 
 
+        # delete tags that were a technicality of the svg-git migration
+        git tag --delete $(git tag | grep ^broken/)
+
+        # unnamespaced tags get $DIR/ prefix
+        for TAG in $(git tag | grep -v /); do
+            git tag "$DIR/$TAG" "$TAG"
+            git tag --delete "$TAG"
+        done
+
         # reconnect disjoint history
         if [ "$DIR" = libyui-qt ]; then
             CONNECT_PARENT=$(git rev-list --all --grep revision=42972)
