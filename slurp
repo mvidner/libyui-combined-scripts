@@ -65,6 +65,9 @@ LIBYUI_REPOS=(
 MSG="Empty initial commit"
 if ! test -d .git; then
     git init .
+    if [ "$(git config user.email)" = "martin@vidner.net" ]; then
+        git config user.email mvidner@suse.com
+    fi
     git commit --allow-empty -m "$MSG"
 fi
 FIRST_COMMIT=$(git rev-list --max-count=1 --fixed-strings --grep="$MSG" HEAD)
