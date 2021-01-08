@@ -14,6 +14,11 @@ import() {
     if ! test -d "$CDIR"; then
         git clone "$URL" "$CDIR"
         pushd "$CDIR"
+
+        # to-subdirectory: put everything to a subdirectory
+        # message: rewrite "Merge pull request #99 from abranch" to
+        #                  "Merge pull request libyui/libyui-qt#99 from abranch"
+        #          so that GitHub automatic hyperlinks point correctly
         git-filter-repo \
             --to-subdirectory-filter "$DIR" \
             --message-callback \
@@ -21,7 +26,8 @@ import() {
 
 
         # delete tags that were a technicality of the svg-git migration
-        git tag --delete $(git tag | grep ^broken/)
+        mapfile -t BROKEN_TAGS < <(git tag | grep ^broken/)
+        git tag --delete "${BROKEN_TAGS[@]}"
 
         # unnamespaced tags get $DIR/ prefix
         for TAG in $(git tag | grep -v /); do
@@ -74,7 +80,7 @@ merge_master() {
         BRANCH_INITIAL_COMMIT=$(git rev-list --max-parents=0 "$R"/master)
         git replace --graft "$BRANCH_INITIAL_COMMIT" "$EMPTY_PARENT"
     done
-    git merge -m "Mooooooooerge!!" "${LIBYUI_REPOS[@]/%/\/master}"
+    git merge -m "Merge 'master' of all repositories" "${LIBYUI_REPOS[@]/%/\/master}"
 }
 
 merge_master
@@ -110,5 +116,6 @@ for B in $BRANCHES; do
 
     ONE_REMOTE=$(git branch --remotes | sed -n "s@ *\([^/]*\)/$B\$@\1@;T;p;q")
     git switch --no-track --create "$B" "${ONE_REMOTE}"/"$B"
-    git merge --ff -m "Mooerge $B" $(git branch --remotes | grep "/$B$")
+    mapfile -t BS < <(git branch --remotes --format='%(refname:short)' | grep "/$B$")
+    git merge --ff -m "Merge '$B' of all repositories" "${BS[@]}"
 done
