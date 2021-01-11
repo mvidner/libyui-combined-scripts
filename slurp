@@ -69,6 +69,7 @@ if ! test -d .git; then
         git config user.email mvidner@suse.com
     fi
     git commit --allow-empty -m "$MSG"
+    git remote add origin git@github.com:mvidner/libyui-combined-alpha-3.git
 fi
 FIRST_COMMIT=$(git rev-list --max-count=1 --fixed-strings --grep="$MSG" HEAD)
 
@@ -87,6 +88,8 @@ merge_master() {
 }
 
 merge_master
+# now push master so that it becomes the default branch
+git push origin master
 
 # sed does
 #   libyui/foo
@@ -122,3 +125,12 @@ for B in $BRANCHES; do
     mapfile -t BS < <(git branch --remotes --format='%(refname:short)' | grep "/$B$")
     git merge --ff -m "Merge '$B' of all repositories" "${BS[@]}"
 done
+
+# Unsuccessful tries to set the default branch without pushing master first:
+# git symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/master
+# or
+# git remote set-head origin maste
+# but it still does not change the remote end
+
+git push --all origin
+git push --tags origin
