@@ -1,5 +1,9 @@
 #!/bin/bash
-# ingest several repos
+# usage:
+# mkdir libyui-combined-prototype
+# cd    libyui-combined-prototype
+# ln -s ../slurp .
+# ./slurp
 
 set -x
 set -eu
@@ -15,11 +19,20 @@ import() {
         git clone "$URL" "$CDIR"
         pushd "$CDIR"
 
+        # reconnect disjoint history
+        if [ "$DIR" = libyui-qt ]; then
+            CONNECT_PARENT=$(git rev-list --all --grep revision=42972)
+            CONNECT_CHILD=$(git  rev-list --all --grep revision=43019)
+            git replace --graft "$CONNECT_CHILD" "$CONNECT_PARENT"
+        fi
+
+        # force: work even with the graft above
         # to-subdirectory: put everything to a subdirectory
         # message: rewrite "Merge pull request #99 from abranch" to
         #                  "Merge pull request libyui/libyui-qt#99 from abranch"
         #          so that GitHub automatic hyperlinks point correctly
         git-filter-repo \
+            --force \
             --to-subdirectory-filter "$DIR" \
             --message-callback \
             'dir = bytes(os.environ["DIR"], "UTF-8"); return re.sub(br"([^A-Za-z]|^)(#[0-9]{1,4})([^0-9]|$)", br"\1libyui/" + dir + br"\2\3",  message)'
@@ -34,13 +47,6 @@ import() {
             git tag "$DIR/$TAG" "$TAG"
             git tag --delete "$TAG"
         done
-
-        # reconnect disjoint history
-        if [ "$DIR" = libyui-qt ]; then
-            CONNECT_PARENT=$(git rev-list --all --grep revision=42972)
-            CONNECT_CHILD=$(git  rev-list --all --grep revision=43019)
-            git replace --graft "$CONNECT_CHILD" "$CONNECT_PARENT"
-        fi
 
         popd
     fi
@@ -103,22 +109,8 @@ branch_exists() {
     git rev-list --quiet "$1" -- 2>/dev/null
 }
 
-needs_common_origin() {
-    case "$1" in
-        # "fatal: refusing to merge unrelated histories"
-        openSUSE-10_0|openSUSE-10_1|openSUSE-10_2|openSUSE-10_3)
-            return 0;;
-        openSUSE-9_3|SLE-10|SLE-10-SP1|SLE-10-SP2|SLE-10-SP3|SLE-10-SP4|SLE-10-SP4-Code11-Backport)
-            return 0;;
-        *)
-            return 1;;
-    esac
-}
-
 for B in $BRANCHES; do
     if branch_exists "$B"; then continue; fi
-    # TODO: do something similar to master: create an artificial common commit
-    if needs_common_origin "$B"; then continue; fi
 
     ONE_REMOTE=$(git branch --remotes | sed -n "s@ *\([^/]*\)/$B\$@\1@;T;p;q")
     git switch --no-track --create "$B" "${ONE_REMOTE}"/"$B"
